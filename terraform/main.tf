@@ -21,6 +21,8 @@ provider "azurerm" {
 
 provider "azapi" {}
 
+data "azurerm_client_config" "current" {}
+
 resource "azurerm_resource_group" "this" {
   name     = "opentelemetry-demo"
   location = "westeurope"
@@ -155,7 +157,7 @@ resource "azurerm_federated_identity_credential" "eso" {
   user_assigned_identity_id = azurerm_user_assigned_identity.eso.id
 
   issuer   = module.aks.oidc_issuer_url
-  subject = "system:serviceaccount:external-secrets:eso-keyvault"
+  subject  = "system:serviceaccount:external-secrets:eso-keyvault"
   audience = ["api://AzureADTokenExchange"]
 }
 
@@ -181,4 +183,19 @@ resource "azurerm_role_assignment" "github_actions_acr_push" {
   scope                = module.acr.id
   role_definition_name = "AcrPush"
   principal_id         = azurerm_user_assigned_identity.github_actions.principal_id
+}
+
+
+resource "azurerm_federated_identity_credential" "github_actions" {
+  name = "github-actions-main"
+
+  user_assigned_identity_id = azurerm_user_assigned_identity.github_actions.id
+
+  issuer = "https://token.actions.githubusercontent.com"
+
+  subject = "repo:damir254@262008801/AKS-opentelemetry@1334130552:ref:refs/heads/main"
+
+  audience = [
+    "api://AzureADTokenExchange"
+  ]
 }
