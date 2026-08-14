@@ -40,7 +40,7 @@ jobs:
 
       - name: Validate Python syntax
         working-directory: src/recommendation
-        run: python -m compileall --quiet .
+        run: python -m compileall -q .
 
   build-and-push:
     needs: validate
