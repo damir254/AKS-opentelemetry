@@ -61,5 +61,5 @@ jobs:
         env:
           IMAGE: ${{ vars.ACR_LOGIN_SERVER }}/product-catalog:${{ github.sha }}
         run: |
-          docker build --file Dockerfile --tag "$IMAGE" .
+          docker build --file src/product-catalog/Dockerfile --tag "$IMAGE" .
           docker push "$IMAGE"
