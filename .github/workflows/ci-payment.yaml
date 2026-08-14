@@ -1,0 +1,52 @@
+name: Payment CI
+
+on:
+  pull_request:
+    paths:
+      - "src/payment/**"
+      - ".github/workflows/ci-payment.yaml"
+      - ".github/workflows/reusable-build-push.yaml"
+
+  push:
+    branches:
+      - main
+    paths:
+      - "src/payment/**"
+      - ".github/workflows/ci-payment.yaml"
+      - ".github/workflows/reusable-build-push.yaml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: src/payment/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/payment
+        run: npm ci
+
+      - name: Validate JavaScript syntax
+        working-directory: src/payment
+        run: node --check index.js && node --check charge.js && node --check logger.js
+
+  build-and-push:
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/reusable-build-push.yaml
+    with:
+      service-name: payment
+      build-context: .
+      dockerfile: src/payment/Dockerfile
