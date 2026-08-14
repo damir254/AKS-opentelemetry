@@ -8,32 +8,74 @@ Kubernetes platform operations.
 ## Architecture
 
 ```mermaid
-flowchart LR
-    Developer --> GitHub
-    GitHub --> Actions[GitHub Actions]
-    Actions --> OIDC[GitHub OIDC]
-    OIDC --> ACR[Azure Container Registry]
+flowchart TB
+    subgraph Delivery["CI / Image Delivery"]
+        direction LR
+        Developer([Developer]) --> GitHub[(GitHub)]
+        GitHub --> Actions[GitHub Actions]
+        Actions --> OIDC[GitHub OIDC]
+    end
 
-    ACR --> Updater[Argo CD Image Updater]
-    Updater --> Values[Git values.yaml update]
-    Values --> Argo[Argo CD]
+    subgraph Azure["Azure Infrastructure"]
+        direction LR
+        ACR[(Azure Container Registry)]
+        AKS[AKS Cluster]
+        KV[(Azure Key Vault)]
+        Identities[Managed Identities]
+        Network[Azure Networking]
+    end
+
+    Terraform[Terraform] --> AKS
+    Terraform --> ACR
+    Terraform --> KV
+    Terraform --> Identities
+    Terraform --> Network
+    OIDC --> ACR
+
+    subgraph GitOps["GitOps Reconciliation"]
+        direction LR
+        Updater[Argo CD Image Updater] --> Values[Update Helm values.yaml in Git]
+        Values --> Argo[Argo CD]
+    end
+
+    ACR --> Updater
     Argo --> AKS
 
-    Terraform --> AKS
-    Terraform --> ACR
-    Terraform --> KV[Azure Key Vault]
-    Terraform --> Identities[Managed Identities]
-    Terraform --> Network[Networking]
+    subgraph SecretFlow["Secret Delivery"]
+        direction LR
+        WI[AKS Workload Identity] --> ESO[External Secrets Operator]
+        ESO --> Secrets[Kubernetes Secrets]
+        Secrets --> Workloads[Application Workloads]
+    end
 
-    KV --> WI[AKS Workload Identity]
-    WI --> ESO[External Secrets Operator]
-    ESO --> Secrets[Kubernetes Secrets]
-    Secrets --> Workloads
+    KV --> WI
+    Identities --> WI
+    AKS --> Workloads
 
-    Gateway[Gateway API] --> Proxy[frontend-proxy]
-    Proxy --> Services[Internal services]
+    subgraph Runtime["Traffic and Observability"]
+        direction LR
+        Gateway[Gateway API] --> Proxy[frontend-proxy]
+        Proxy --> Services[Internal Services]
+        Monitoring[Prometheus and Grafana] -. observes .-> Services
+    end
 
-    Monitoring[Prometheus and Grafana] --> Observability
+    AKS --> Gateway
+
+    classDef source fill:#24292f,stroke:#0d1117,color:#ffffff
+    classDef automation fill:#2563eb,stroke:#1d4ed8,color:#ffffff
+    classDef azure fill:#0078d4,stroke:#005a9e,color:#ffffff
+    classDef gitops fill:#f97316,stroke:#c2410c,color:#ffffff
+    classDef security fill:#7c3aed,stroke:#5b21b6,color:#ffffff
+    classDef runtime fill:#059669,stroke:#047857,color:#ffffff
+    classDef observe fill:#dc2626,stroke:#991b1b,color:#ffffff
+
+    class Developer,GitHub source
+    class Actions,OIDC,Terraform automation
+    class ACR,AKS,KV,Identities,Network azure
+    class Updater,Values,Argo gitops
+    class WI,ESO,Secrets security
+    class Workloads,Gateway,Proxy,Services runtime
+    class Monitoring observe
 ```
 
 ## Technologies
@@ -137,13 +179,6 @@ Each child Application uses automated synchronization with `prune` and
 ├── .github/workflows/
 └── docs/
 ```
-
-## Recreation
-
-The full rebuild procedure is documented in
-[docs/recreation.md](docs/recreation.md). At a high level: apply Terraform,
-securely populate the required Key Vault values, install Argo CD, and apply the
-root Application so GitOps can reconcile the remaining platform components.
 
 ## What This Project Demonstrates
 
