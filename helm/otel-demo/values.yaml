@@ -148,7 +148,7 @@ services:
       mountPath: /tmp
   payment:
     enabled: true
-    replicaCount: 2
+    replicaCount: 1
     image:
       repository: oteldemoacr.azurecr.io/payment
       tag: "33d58d7811714968bc73ef6bb5cbdc4a2e8452f6"
