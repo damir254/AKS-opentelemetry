@@ -1,0 +1,79 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: image-updater
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argocd-image-updater
+      targetRevision: 1.2.4
+      helm:
+        releaseName: argocd-image-updater
+        values: |
+          crds:
+            install: true
+
+          replicaCount: 1
+
+          serviceAccount:
+            create: true
+            name: argocd-image-updater-controller
+            annotations:
+              azure.workload.identity/client-id: "bb7f029c-36a5-43f2-822b-c3f56b40c9da"
+            labels:
+              azure.workload.identity/use: "true"
+
+          podLabels:
+            azure.workload.identity/use: "true"
+
+          extraEnv:
+            - name: ACR_NAME
+              value: oteldemoacr.azurecr.io
+
+          config:
+            registries:
+              - name: oteldemoacr
+                api_url: https://oteldemoacr.azurecr.io
+                prefix: oteldemoacr.azurecr.io
+                ping: yes
+                credentials: ext:/scripts/azure-workload-identity.sh
+                credsexpire: 1h
+
+          authScripts:
+            enabled: true
+            scripts:
+              azure-workload-identity.sh: |
+                #!/bin/sh
+                set -eo pipefail
+
+                FEDERATED_TOKEN=$(cat "$AZURE_FEDERATED_TOKEN_FILE")
+
+                AZURE_ACCESS_TOKEN=$(
+                  wget --quiet --output-document=- \
+                    --header="Content-Type: application/x-www-form-urlencoded" \
+                    --post-data="grant_type=client_credentials&client_id=${AZURE_CLIENT_ID}&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&scope=https://management.azure.com/.default&client_assertion=${FEDERATED_TOKEN}" \
+                    "https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/token" \
+                  | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])"
+                )
+
+                ACR_REFRESH_TOKEN=$(
+                  wget --quiet --output-document=- \
+                    --header="Content-Type: application/x-www-form-urlencoded" \
+                    --post-data="grant_type=access_token&service=${ACR_NAME}&access_token=${AZURE_ACCESS_TOKEN}" \
+                    "https://${ACR_NAME}/oauth2/exchange" \
+                  | python3 -c "import sys, json; print(json.load(sys.stdin)['refresh_token'])"
+                )
+
+                echo "00000000-0000-0000-0000-000000000000:${ACR_REFRESH_TOKEN}"
+    - repoURL: https://github.com/damir254/AKS-opentelemetry.git
+      targetRevision: main
+      path: platform/argocd/image-updater
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
