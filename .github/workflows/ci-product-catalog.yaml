@@ -57,7 +57,7 @@ jobs:
         run: az acr login --name "${ACR_LOGIN_SERVER%%.*}"
 
       - name: Build and push image
-        working-directory: src/product-catalog
+        working-directory: .
         env:
           IMAGE: ${{ vars.ACR_LOGIN_SERVER }}/product-catalog:${{ github.sha }}
         run: |
