@@ -199,3 +199,36 @@ resource "azurerm_federated_identity_credential" "github_actions" {
     "api://AzureADTokenExchange"
   ]
 }
+
+resource "azurerm_user_assigned_identity" "argocd_image_updater" {
+  name                = "argocd-image-updater-identity"
+  location            = azurerm_resource_group.this.location
+  resource_group_name = azurerm_resource_group.this.name
+
+  tags = {
+    Environment = "dev"
+    Project     = "azure-lab"
+    ManagedBy   = "Terraform"
+  }
+}
+
+resource "azurerm_role_assignment" "argocd_image_updater_acr_pull" {
+  scope                = module.acr.id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_user_assigned_identity.argocd_image_updater.principal_id
+}
+
+
+resource "azurerm_federated_identity_credential" "argocd_image_updater" {
+  name = "argocd-image-updater-workload-identity"
+
+  user_assigned_identity_id = azurerm_user_assigned_identity.argocd_image_updater.id
+
+  issuer = module.aks.oidc_issuer_url
+
+  subject = "system:serviceaccount:argocd:argocd-image-updater-controller"
+
+  audience = [
+    "api://AzureADTokenExchange"
+  ]
+}
