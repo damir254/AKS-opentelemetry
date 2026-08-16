@@ -5,6 +5,35 @@ around selected OpenTelemetry Demo services. It focuses on reproducible cloud
 infrastructure, secure CI/CD, GitOps delivery, observability, and day-to-day
 Kubernetes platform operations.
 
+## Future Improvements
+
+This is a production-style project, not a production-ready platform. It was
+built under Azure trial and quota constraints, so some improvements were
+intentionally left for future iterations.
+
+### CI/CD
+
+The current pipeline provides service-specific validation, GitHub OIDC
+authentication, immutable Git SHA tagging, and image publishing to ACR. Future
+improvements include:
+
+- Real unit/integration tests, Trivy scanning, Docker Buildx layer caching, and
+  dependency caching
+- Terraform/Helm pull-request validation and optional image signing or broader
+  software supply-chain controls
+
+The Azure environment was decommissioned before these changes could be
+validated end-to-end against ACR and AKS.
+
+### High Availability
+
+The AKS environment used one worker node because the Azure trial was limited to
+a 4-vCPU quota. A production deployment would use multiple nodes, availability
+zones where supported, topology spread or anti-affinity, suitable replica
+counts and PodDisruptionBudgets, and appropriately scaled node pools. The Helm
+chart includes HPA and PDB support, but node-level high availability could not
+be demonstrated within the available quota.
+
 ## Architecture
 
 ```mermaid
