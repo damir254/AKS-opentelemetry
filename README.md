@@ -22,9 +22,6 @@ improvements include:
 - Terraform/Helm pull-request validation and optional image signing or broader
   software supply-chain controls
 
-The Azure environment was decommissioned before these changes could be
-validated end-to-end against ACR and AKS.
-
 ### High Availability
 
 The AKS environment used one worker node because the Azure trial was limited to
